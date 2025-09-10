@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proof-of-Optimization Network (PON)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js" integrity="sha256-4jW7/4A3e2g6e2f8f5c7b1b1c1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js" integrity="sha256-2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha256-3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.2/babel.min.js" integrity="sha256-7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d" crossorigin="anonymous"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0a0a0a;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+        .section {
+            min-height: 100vh;
+            padding: 5rem 10%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0.2;
+            z-index: -1;
+            filter: blur(8px);
+            transition: opacity 0.5s ease;
+        }
+        .section:hover .background {
+            opacity: 0.3;
+        }
+        canvas {
+            max-width: 600px !important;
+            margin: 2rem auto;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+            padding: 1rem 0;
+        }
+        .navbar a {
+            color: #f0f0f0;
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+        .navbar a:hover {
+            color: #ffd700;
+            text-shadow: 0 0 8px #ffd700;
+        }
+        .cta {
+            background: linear-gradient(45deg, #00ffcc, #ffd700);
+            color: #000;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .cta:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
+        }
+        table {
+            width: 100%;
+            max-width: 800px;
+            border-collapse: collapse;
+            margin: 2rem auto;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+        th, td {
+            padding: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        th {
+            background: #1a1a1a;
+            color: #ffd700;
+        }
+        h1, h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 3rem;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+        .error-boundary {
+            padding: 2rem;
+            background: rgba(255, 0, 0, 0.2);
+            border-radius: 8px;
+            max-width: 600px;
+            margin: 2rem auto;
+        }
+        @media (max-width: 768px) {
+            h1, h2 {
+                font-size: 2rem;
+            }
+            .navbar a {
+                font-size: 0.9rem;
+            }
+            canvas {
+                max-width: 100% !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Fallback Scripts -->
+    <script>
+        // Fallback if CDNs fail
+        window.addEventListener('error', (event) => {
+            if (event.target.tagName === 'SCRIPT') {
+                console.error('CDN failed to load:', event.target.src);
+                // Optionally, load local fallback scripts here
+                // Example: document.write('<script src="./vendor/react.production.min.js"><\/script>');
+            }
+        });
+    </script>
+
+    <script type="text/babel">
+        const { useEffect, useRef, useState } = React;
+
+        // Error Boundary Component
+        const ErrorBoundary = ({ children }) => {
+            const [hasError, setHasError] = useState(false);
+            const [errorMessage, setErrorMessage] = useState('');
+
+            useEffect(() => {
+                const errorHandler = (error) => {
+                    console.error('Script Error:', error);
+                    setHasError(true);
+                    setErrorMessage(error.message || 'An unexpected error occurred.');
+                };
+                window.addEventListener('error', errorHandler);
+                return () => window.removeEventListener('error', errorHandler);
+            }, []);
+
+            if (hasError) {
+                return (
+                    <div className="error-boundary">
+                        <h2>Oops, something went wrong!</h2>
+                        <p>{errorMessage}</p>
+                        <p>Please refresh the page or contact <a href="mailto:contact@pon.network" className="text-yellow-400">support</a>.</p>
+                    </div>
+                );
+            }
+            return children;
+        };
+
+        const sections = [
+            { id: 'cover', title: 'Cover' },
+            { id: 'problem', title: 'Problem' },
+            { id: 'solution', title: 'Solution' },
+            { id: 'why-now', title: 'Why Now?' },
+            { id: 'market', title: 'Market' },
+            { id: 'technology', title: 'Technology' },
+            { id: 'tokenomics', title: 'Tokenomics' },
+            { id: 'business-model', title: 'Business Model' },
+            { id: 'use-cases', title: 'Use Cases' },
+            { id: 'competitive', title: 'Competitive' },
+            { id: 'roadmap', title: 'Roadmap' },
+            { id: 'team', title: 'Team' },
+            { id: 'traction', title: 'Traction' },
+            { id: 'ask', title: 'Ask' },
+            { id: 'closing', title: 'Closing' }
+        ];
+
+        const Navbar = () => (
+            <nav className="navbar">
+                <ul className="flex justify-center flex-wrap gap-4">
+                    {sections.map(section => (
+                        <li key={section.id}>
+                            <a href={`#${section.id}`} className="font-semibold text-lg hover:text-yellow-400">
+                                {section.title}
+                            </a>
+                        </li>
+                    ))}
+                </ul>
+            </nav>
+        );
+
+        const Section = ({ id, children, bgImage }) => (
+            <section
+                id={id}
+                className="section"
+                style={{
+                    animation: 'fadeIn 0.8s ease forwards',
+                    transform: 'translateY(0)',
+                    opacity: 1
+                }}
+            >
+                <style>
+                    {`
+                        @keyframes fadeIn {
+                            from { opacity: 0; transform: translateY(50px); }
+                            to { opacity: 1; transform: translateY(0); }
+                        }
+                    `}
+                </style>
+                <div className="background" style={{ backgroundImage: `url(${bgImage})` }}></div>
+                {children}
+            </section>
+        );
+
+        const App = () => {
+            const marketChartRef = useRef(null);
+            const tokenomicsChartRef = useRef(null);
+            const competitiveChartRef = useRef(null);
+            const roadmapChartRef = useRef(null);
+            const fundsChartRef = useRef(null);
+
+            useEffect(() => {
+                const createChart = (ref, config) => {
+                    if (ref.current && typeof Chart !== 'undefined') {
+                        const existingChart = Chart.getChart(ref.current);
+                        if (existingChart) {
+                            existingChart.destroy();
+                        }
+                        try {
+                            new Chart(ref.current, config);
+                        } catch (e) {
+                            console.error('Chart initialization failed:', e);
+                        }
+                    } else {
+                        console.warn('Chart.js not loaded or canvas ref missing for', ref.current);
+                    }
+                };
+
+                // Market Chart
+                createChart(marketChartRef, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Logistics', 'Scheduling', 'Smart Cities', 'Factory Automation'],
+                        datasets: [{
+                            data: [50, 20, 15, 15],
+                            backgroundColor: ['#00ffcc', '#1a3c66', '#66ccff', '#00cc99'],
+                            borderColor: ['#fff'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top', labels: { color: '#fff', font: { size: 14 } } },
+                            title: { display: true, text: 'Market Opportunity ($30B+)', color: '#fff', font: { size: 18 } }
+                        }
+                    }
+                });
+
+                // Tokenomics Chart
+                createChart(tokenomicsChartRef, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Solver Rewards', 'Ecosystem Fund', 'Team (vested)', 'Investors', 'Treasury', 'Liquidity'],
+                        datasets: [{
+                            data: [40, 20, 15, 10, 10, 5],
+                            backgroundColor: ['#00ffcc', '#1a3c66', '#66ccff', '#00cc99', '#3399ff', '#66ffcc'],
+                            borderColor: ['#fff'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top', labels: { color: '#fff', font: { size: 14 } } },
+                            title: { display: true, text: 'Token Distribution', color: '#fff', font: { size: 18 } }
+                        }
+                    }
+                });
+
+                // Competitive Chart
+                createChart(competitiveChartRef, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [
+                            { label: 'CPLEX/Gurobi', data: [{ x: 2, y: 8 }], backgroundColor: '#ff6666' },
+                            { label: 'Gridcoin/FoldingCoin', data: [{ x: 4, y: 3 }], backgroundColor: '#ffcc66' },
+                            { label: 'Render/Akash', data: [{ x: 6, y: 4 }], backgroundColor: '#66ccff' },
+                            { label: 'PON', data: [{ x: 8, y: 8 }], backgroundColor: '#00ffcc' }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { title: { display: true, text: 'Verifiability', color: '#fff' }, ticks: { color: '#fff' } },
+                            y: { title: { display: true, text: 'Enterprise Focus', color: '#fff' }, ticks: { color: '#fff' } }
+                        },
+                        plugins: {
+                            legend: { labels: { color: '#fff', font: { size: 14 } } },
+                            title: { display: true, text: 'Competitive Landscape', color: '#fff', font: { size: 18 } }
+                        }
+                    }
+                });
+
+                // Roadmap Chart
+                createChart(roadmapChartRef, {
+                    type: 'line',
+                    data: {
+                        labels: ['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', '2027'],
+                        datasets: [{
+                            label: 'Milestones',
+                            data: [1, 2, 3, 4, 5],
+                            borderColor: '#00ffcc',
+                            backgroundColor: 'rgba(0, 255, 204, 0.2)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: { display: false },
+                            x: { title: { display: true, text: 'Timeline', color: '#fff' }, ticks: { color: '#fff' } }
+                        },
+                        plugins: {
+                            legend: { labels: { color: '#fff', font: { size: 14 } } },
+                            title: { display: true, text: 'Roadmap Timeline', color: '#fff', font: { size: 18 } }
+                        }
+                    }
+                });
+
+                // Funds Chart
+                createChart(fundsChartRef, {
+                    type: 'pie',
+                    data: {
+                        labels: ['R&D', 'Sales & Integrations', 'Community Building', 'Legal & Compliance'],
+                        datasets: [{
+                            data: [40, 30, 20, 10],
+                            backgroundColor: ['#00ffcc', '#1a3c66', '#66ccff', '#00cc99'],
+                            borderColor: ['#fff'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top', labels: { color: '#fff', font: { size: 14 } } },
+                            title: { display: true, text: 'Use of Funds', color: '#fff', font: { size: 18 } }
+                        }
+                    }
+                });
+
+                return () => {
+                    // Cleanup charts
+                    [marketChartRef, tokenomicsChartRef, competitiveChartRef, roadmapChartRef, fundsChartRef].forEach(ref => {
+                        if (ref.current) {
+                            const chart = Chart.getChart(ref.current);
+                            if (chart) chart.destroy();
+                        }
+                    });
+                };
+            }, []);
+
+            return (
+                <ErrorBoundary>
+                    <div>
+                        <Navbar />
+                        <Section id="cover" bgImage="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h1 className="text-5xl md:text-6xl mb-4">Proof-of-Optimization Network</h1>
+                            <p className="text-xl md:text-2xl mb-6">ZK-powered decentralized optimization marketplace</p>
+                            <img src="./assets/logo.png" alt="PON Logo" className="w-48 md:w-64 rounded-lg mb-6" onError={(e) => e.target.src = 'https://via.placeholder.com/300x300?text=PON+Logo'} />
+                            <a href="#problem" className="cta">Discover PON</a>
+                        </Section>
+                        <Section id="problem" bgImage="https://images.unsplash.com/photo-1586528116311-ad8dd3a8a7cc?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">The Problem</h2>
+                            <p className="text-lg"><strong>Inefficiency costs:</strong> Global logistics inefficiencies = $100B+ lost annually.</p>
+                            <p className="text-lg"><strong>Current solutions:</strong> Centralized solvers (CPLEX, Gurobi) are expensive, opaque, and unverifiable.</p>
+                            <p className="text-lg"><strong>Trust issue:</strong> Enterprises can’t verify solver results, only “trust” vendors.</p>
+                        </Section>
+                        <Section id="solution" bgImage="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">The Solution (PON)</h2>
+                            <p className="text-lg">A <strong>blockchain marketplace</strong> where:</p>
+                            <ul className="text-lg list-disc list-inside">
+                                <li>Enterprises submit optimization problems (TSP/VRP/scheduling).</li>
+                                <li>Solvers compete to solve & generate <strong>ZK proofs</strong>.</li>
+                                <li>Verifiers instantly confirm correctness.</li>
+                                <li>Tokens ($OPT) flow between enterprises & solvers.</li>
+                            </ul>
+                            <img src="./assets/workflow-diagram.png" alt="Workflow Diagram" className="w-full max-w-xl mt-6 rounded-lg" onError={(e) => e.target.src = 'https://via.placeholder.com/600x300?text=Workflow+Diagram'} />
+                        </Section>
+                        <Section id="why-now" bgImage="https://images.unsplash.com/photo-1516321310764-4d5b6c1a9d77?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Why Now?</h2>
+                            <p className="text-lg"><strong>ZK Tech is production-ready</strong> (Aleo, zkSync, StarkNet).</p>
+                            <p className="text-lg"><strong>Decentralized compute networks are growing</strong> (Render, Akash).</p>
+                            <p className="text-lg"><strong>Logistics/AI demand is exploding</strong> (AI-driven supply chain optimization).</p>
+                        </Section>
+                        <Section id="market" bgImage="https://images.unsplash.com/photo-1451187580459-43490279c0fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Market Opportunity</h2>
+                            <p className="text-lg">Global Supply Chain Optimization Market: <strong>$30B+</strong>.</p>
+                            <p className="text-lg">AI/Logistics SaaS growth: <strong>25% CAGR</strong>.</p>
+                            <p className="text-lg">TAM expansion: scheduling, smart cities, factory automation.</p>
+                            <canvas ref={marketChartRef}></canvas>
+                        </Section>
+                        <Section id="technology" bgImage="https://images.unsplash.com/photo-1516321310764-4d5b6c1a9d77?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Technology Overview</h2>
+                            <p className="text-lg"><strong>Blockchain Layer:</strong> Task registry, escrow, payouts.</p>
+                            <p className="text-lg"><strong>Solver Nodes:</strong> Compete to solve optimization tasks.</p>
+                            <p className="text-lg"><strong>ZK Proofs:</strong> Guarantee correctness & privacy.</p>
+                            <p className="text-lg"><strong>Enterprise Portal:</strong> Dashboard/API for easy integration.</p>
+                            <img src="./assets/architecture-diagram.png" alt="Architecture Diagram" className="w-full max-w-xl mt-6 rounded-lg" onError={(e) => e.target.src = 'https://via.placeholder.com/600x300?text=Architecture+Diagram'} />
+                        </Section>
+                        <Section id="tokenomics" bgImage="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Tokenomics</h2>
+                            <p className="text-lg"><strong>Utility of $OPT:</strong></p>
+                            <ul className="text-lg list-disc list-inside">
+                                <li>Task payments</li>
+                                <li>Solver rewards</li>
+                                <li>Staking & governance</li>
+                            </ul>
+                            <p className="text-lg mt-4"><strong>Distribution:</strong></p>
+                            <ul className="text-lg list-disc list-inside">
+                                <li>40% Solver Rewards</li>
+                                <li>20% Ecosystem Fund</li>
+                                <li>15% Team (vested)</li>
+                                <li>10% Investors</li>
+                                <li>10% Treasury</li>
+                                <li>5% Liquidity</li>
+                            </ul>
+                            <canvas ref={tokenomicsChartRef}></canvas>
+                        </Section>
+                        <Section id="business-model" bgImage="https://images.unsplash.com/photo-1451187580459-43490279c0fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Business Model</h2>
+                            <p className="text-lg"><strong>SaaS Subscription:</strong> $999/month → $10k/month enterprise tiers.</p>
+                            <p className="text-lg"><strong>Per-task fees:</strong> 0.5–2% of optimization savings.</p>
+                            <p className="text-lg"><strong>Premium services:</strong> Private solver pools, enterprise SLAs.</p>
+                        </Section>
+                        <Section id="use-cases" bgImage="https://images.unsplash.com/photo-1586528116311-ad8dd3a8a7cc?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Use Cases</h2>
+                            <ol className="text-lg list-decimal list-inside">
+                                <li>Logistics fleet routing (TSP/VRP).</li>
+                                <li>Manufacturing job-shop scheduling.</li>
+                                <li>Smart city public transport optimization.</li>
+                                <li>Supply chain network design.</li>
+                            </ol>
+                            <div className="flex gap-4 flex-wrap justify-center mt-6">
+                                <img src="./assets/trucks.png" alt="Trucks" className="w-24 rounded-lg" onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80'} />
+                                <img src="./assets/factories.png" alt="Factories" className="w-24 rounded-lg" onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80'} />
+                                <img src="./assets/city.png" alt="City" className="w-24 rounded-lg" onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1516321310764-4d5b6c1a9d77?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80'} />
+                                <img src="./assets/cargo-ships.png" alt="Cargo Ships" className="w-24 rounded-lg" onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1586528116311-ad8dd3a8a7cc?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80'} />
+                            </div>
+                        </Section>
+                        <Section id="competitive" bgImage="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Competitive Landscape</h2>
+                            <p className="text-lg">CPLEX / Gurobi: Centralized, expensive, no proofs.</p>
+                            <p className="text-lg">Gridcoin / FoldingCoin: Volunteer computing, but no enterprise focus.</p>
+                            <p className="text-lg">Render / Akash: General compute, not optimization-focused.</p>
+                            <p className="text-lg"><strong>PON:</strong> Verifiable, decentralized, enterprise-grade optimization.</p>
+                            <canvas ref={competitiveChartRef}></canvas>
+                        </Section>
+                        <Section id="roadmap" bgImage="https://images.unsplash.com/photo-1516321310764-4d5b6c1a9d77?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Roadmap</h2>
+                            <table className="w-full max-w-4xl">
+                                <thead>
+                                    <tr>
+                                        <th className="p-4">Phase</th>
+                                        <th className="p-4">Milestone</th>
+                                        <th className="p-4">Timeline</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td className="p-4">Phase 1</td>
+                                        <td className="p-4">TSP prototype + ZK proof demo</td>
+                                        <td className="p-4">Q1 2026</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="p-4">Phase 2</td>
+                                        <td className="p-4">Testnet launch, solver rewards</td>
+                                        <td className="p-4">Q2 2026</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="p-4">Phase 3</td>
+                                        <td className="p-4">Enterprise API + SaaS dashboard</td>
+                                        <td className="p-4">Q3 2026</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="p-4">Phase 4</td>
+                                        <td className="p-4">Mainnet launch + token distribution</td>
+                                        <td className="p-4">Q4 2026</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="p-4">Phase 5</td>
+                                        <td className="p-4">Multi-problem expansion (VRP, scheduling)</td>
+                                        <td className="p-4">2027</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <canvas ref={roadmapChartRef}></canvas>
+                        </Section>
+                        <Section id="team" bgImage="https://images.unsplash.com/photo-1516321310764-4d5b6c1a9d77?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Team</h2>
+                            <p className="text-lg"><strong>Founder/CEO</strong> – Blockchain + optimization background.</p>
+                            <p className="text-lg"><strong>CTO</strong> – ZK cryptography + distributed systems.</p>
+                            <p className="text-lg"><strong>Advisors</strong> – Logistics exec, ZK researcher, enterprise SaaS founder.</p>
+                            <div className="flex gap-4 flex-wrap justify-center mt-6">
+                                <img src="./assets/headshots/ceo.png" alt="CEO" className="w-32 rounded-full" onError={(e) => e.target.src = 'https://via.placeholder.com/150x150?text=CEO+Headshot'} />
+                                <img src="./assets/headshots/cto.png" alt="CTO" className="w-32 rounded-full" onError={(e) => e.target.src = 'https://via.placeholder.com/150x150?text=CTO+Headshot'} />
+                                <img src="./assets/headshots/advisor.png" alt="Advisor" className="w-32 rounded-full" onError={(e) => e.target.src = 'https://via.placeholder.com/150x150?text=Advisor+Headshot'} />
+                            </div>
+                        </Section>
+                        <Section id="traction" bgImage="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Traction & Partnerships</h2>
+                            <p className="text-lg">Current: Prototype in dev, ZK demo done.</p>
+                            <p className="text-lg">Pipeline: Pilot with logistics firm X.</p>
+                            <p className="text-lg">Partnerships: AI/ML labs, ZK foundations, logistics SaaS integrators.</p>
+                            <div className="flex gap-4 flex-wrap justify-center mt-6">
+                                <img src="./assets/partners/fedex.png" alt="FedEx" className="w-20" onError={(e) => e.target.src = 'https://via.placeholder.com/100x100?text=FedEx+Logo'} />
+                                <img src="./assets/partners/dhl.png" alt="DHL" className="w-20" onError={(e) => e.target.src = 'https://via.placeholder.com/100x100?text=DHL+Logo'} />
+                                <img src="./assets/partners/sap.png" alt="SAP" className="w-20" onError={(e) => e.target.src = 'https://via.placeholder.com/100x100?text=SAP+Logo'} />
+                                <img src="./assets/partners/aleo.png" alt="Aleo" className="w-20" onError={(e) => e.target.src = 'https://via.placeholder.com/100x100?text=Aleo+Logo'} />
+                                <img src="./assets/partners/starkware.png" alt="StarkWare" className="w-20" onError={(e) => e.target.src = 'https://via.placeholder.com/100x100?text=StarkWare+Logo'} />
+                            </div>
+                        </Section>
+                        <Section id="ask" bgImage="https://images.unsplash.com/photo-1451187580459-43490279c0fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Ask</h2>
+                            <p className="text-lg"><strong>Seed round:</strong> $3M for 18 months runway.</p>
+                            <p className="text-lg">Use of funds:</p>
+                            <ul className="text-lg list-disc list-inside">
+                                <li>40% R&D (ZK circuits, solver infrastructure).</li>
+                                <li>30% Enterprise sales & integrations.</li>
+                                <li>20% Community building & incentives.</li>
+                                <li>10% Legal & compliance.</li>
+                            </ul>
+                            <canvas ref={fundsChartRef}></canvas>
+                        </Section>
+                        <Section id="closing" bgImage="https://images.unsplash.com/photo-1516321310764-4d5b6c1a9d77?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80">
+                            <h2 className="text-4xl md:text-5xl mb-4">Closing</h2>
+                            <p className="text-xl italic">“Turning optimization into currency.”</p>
+                            <p className="text-lg">Contact: <a href="mailto:contact@pon.network" className="text-yellow-400 hover:text-yellow-300">contact@pon.network</a></p>
+                            <img src="./assets/qr-code.png" alt="QR Code" className="w-32 mt-6" onError={(e) => e.target.src = 'https://via.placeholder.com/150x150?text=QR+Code+Whitepaper'} />
+                            <a href="mailto:contact@pon.network" className="cta">Join the Future</a>
+                        </Section>
+                    </div>
+                </ErrorBoundary>
+            );
+        };
+
+        // Initialize React with fallback
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof ReactDOM !== 'undefined' && typeof React !== 'undefined') {
+                const root = ReactDOM.createRoot(document.getElementById('root'));
+                root.render(<App />);
+            } else {
+                console.error('React or ReactDOM not loaded. Check CDN availability.');
+                document.getElementById('root').innerHTML = `
+                    <div class="error-boundary">
+                        <h2>Failed to load application</h2>
+                        <p>Please check your internet connection and refresh the page.</p>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
