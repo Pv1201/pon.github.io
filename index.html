@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Proof-of-Optimization Network (PON)</title>
+    <base href="/pon-deck/">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js" integrity="sha256-4jW7/4A3e2g6e2f8f5c7b1b1c1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js" integrity="sha256-2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha256-3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.2/babel.min.js" integrity="sha256-7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d" crossorigin="anonymous"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -126,16 +123,25 @@
     </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="root">Loading...</div>
 
-    <!-- Fallback Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.2/babel.min.js"></script>
+
     <script>
         // Fallback if CDNs fail
         window.addEventListener('error', (event) => {
             if (event.target.tagName === 'SCRIPT') {
-                console.error('CDN failed to load:', event.target.src);
-                // Optionally, load local fallback scripts here
-                // Example: document.write('<script src="./vendor/react.production.min.js"><\/script>');
+                console.error('CDN failed:', event.target.src);
+                document.getElementById('root').innerHTML = `
+                    <div class="error-boundary">
+                        <h2>Failed to load application</h2>
+                        <p>Script failed to load. Please check your internet and refresh.</p>
+                        <p>Contact: <a href="mailto:contact@pon.network" class="text-yellow-400">contact@pon.network</a></p>
+                    </div>
+                `;
             }
         });
     </script>
@@ -143,16 +149,15 @@
     <script type="text/babel">
         const { useEffect, useRef, useState } = React;
 
-        // Error Boundary Component
         const ErrorBoundary = ({ children }) => {
             const [hasError, setHasError] = useState(false);
             const [errorMessage, setErrorMessage] = useState('');
 
             useEffect(() => {
                 const errorHandler = (error) => {
-                    console.error('Script Error:', error);
+                    console.error('Error:', error);
                     setHasError(true);
-                    setErrorMessage(error.message || 'An unexpected error occurred.');
+                    setErrorMessage(error.message || 'Something broke. Try refreshing.');
                 };
                 window.addEventListener('error', errorHandler);
                 return () => window.removeEventListener('error', errorHandler);
@@ -163,7 +168,7 @@
                     <div className="error-boundary">
                         <h2>Oops, something went wrong!</h2>
                         <p>{errorMessage}</p>
-                        <p>Please refresh the page or contact <a href="mailto:contact@pon.network" className="text-yellow-400">support</a>.</p>
+                        <p>Contact: <a href="mailto:contact@pon.network" className="text-yellow-400">contact@pon.network</a></p>
                     </div>
                 );
             }
@@ -242,14 +247,11 @@
                         try {
                             new Chart(ref.current, config);
                         } catch (e) {
-                            console.error('Chart initialization failed:', e);
+                            console.error('Chart failed:', e);
                         }
-                    } else {
-                        console.warn('Chart.js not loaded or canvas ref missing for', ref.current);
                     }
                 };
 
-                // Market Chart
                 createChart(marketChartRef, {
                     type: 'pie',
                     data: {
@@ -270,7 +272,6 @@
                     }
                 });
 
-                // Tokenomics Chart
                 createChart(tokenomicsChartRef, {
                     type: 'pie',
                     data: {
@@ -291,7 +292,6 @@
                     }
                 });
 
-                // Competitive Chart
                 createChart(competitiveChartRef, {
                     type: 'scatter',
                     data: {
@@ -315,7 +315,6 @@
                     }
                 });
 
-                // Roadmap Chart
                 createChart(roadmapChartRef, {
                     type: 'line',
                     data: {
@@ -342,7 +341,6 @@
                     }
                 });
 
-                // Funds Chart
                 createChart(fundsChartRef, {
                     type: 'pie',
                     data: {
@@ -364,7 +362,6 @@
                 });
 
                 return () => {
-                    // Cleanup charts
                     [marketChartRef, tokenomicsChartRef, competitiveChartRef, roadmapChartRef, fundsChartRef].forEach(ref => {
                         if (ref.current) {
                             const chart = Chart.getChart(ref.current);
@@ -558,21 +555,19 @@
             );
         };
 
-        // Initialize React with fallback
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof ReactDOM !== 'undefined' && typeof React !== 'undefined') {
-                const root = ReactDOM.createRoot(document.getElementById('root'));
-                root.render(<App />);
-            } else {
-                console.error('React or ReactDOM not loaded. Check CDN availability.');
-                document.getElementById('root').innerHTML = `
-                    <div class="error-boundary">
-                        <h2>Failed to load application</h2>
-                        <p>Please check your internet connection and refresh the page.</p>
-                    </div>
-                `;
-            }
-        });
+        try {
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(<App />);
+        } catch (e) {
+            console.error('React failed to render:', e);
+            document.getElementById('root').innerHTML = `
+                <div class="error-boundary">
+                    <h2>Failed to load application</h2>
+                    <p>Error: ${e.message}</p>
+                    <p>Please refresh or contact <a href="mailto:contact@pon.network" class="text-yellow-400">contact@pon.network</a></p>
+                </div>
+            `;
+        }
     </script>
 </body>
 </html>
